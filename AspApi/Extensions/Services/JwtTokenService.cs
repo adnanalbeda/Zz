@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
@@ -16,15 +15,21 @@ using Zz.App.Identity;
 using Zz.Configs;
 using Zz.Model.Identity;
 
-public class TokenService : ITokenService
+public class JwtTokenService : ITokenService
 {
-    private readonly IdentityConfigs _config;
+    private readonly JwtIdentityConfigs _config;
     private readonly UserManager<User> _userManager;
+    private readonly HttpContext? _httpContext;
 
-    public TokenService(IdentityConfigs config, UserManager<User> userManager)
+    public JwtTokenService(
+        JwtIdentityConfigs config,
+        UserManager<User> userManager,
+        IHttpContextAccessor httpContextAccessor
+    )
     {
         _config = config;
         _userManager = userManager;
+        _httpContext = httpContextAccessor.HttpContext;
     }
 
     public RefreshToken GenerateRefreshToken(Id22 appUserId)
@@ -63,11 +68,6 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.Name, user.UserName!),
         };
 
-        claims.AddClaimWhenNotEmpty(ClaimTypes.Email, user.Email);
-        claims.AddClaimWhenNotEmpty(ClaimTypes.GivenName, user.Profile.DisplayName);
-        claims.AddClaimWhenNotEmpty(ClaimTypes.Webpage, origin);
-        claims.AddClaimWhenNotEmpty(ClaimTypes.System, agentOrOs?.GetHashCode().ToString());
-
         var roles = await _userManager.GetRolesAsync(user);
 
         foreach (var role in roles)
@@ -75,7 +75,7 @@ public class TokenService : ITokenService
             claims.AddClaim(ClaimTypes.Role, role);
         }
 
-        return GetToken(claims, expirationDateTime ?? DateTime.UtcNow.AddMinutes(60), origin);
+        return GetToken(claims, expirationDateTime, origin);
     }
 
     public async Task<string> CreateTokenAsync(
@@ -90,13 +90,8 @@ public class TokenService : ITokenService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.UserName!),
-            new Claim("sid", sessionId.ToString()), // sid is not made for this, but that's what I decided it's for.
+            new Claim("sid", sessionId.ToString()),
         };
-
-        // claims.AddClaimWhenNotEmpty(ClaimTypes.Email, user.Email);
-        // claims.AddClaimWhenNotEmpty(ClaimTypes.GivenName, user.Profile.DisplayName);
-        // claims.AddClaimWhenNotEmpty(ClaimTypes.Webpage, origin);
-        // claims.AddClaimWhenNotEmpty(ClaimTypes.System, agentOrOs?.GetHashCode().ToString());
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -105,7 +100,7 @@ public class TokenService : ITokenService
             claims.AddClaim(ClaimTypes.Role, role);
         }
 
-        return GetToken(claims, expirationDateTime ?? DateTime.UtcNow.AddMinutes(60), origin);
+        return GetToken(claims, expirationDateTime, origin);
     }
 
     public Task<string> CreateScopedTokenAsync(
@@ -126,17 +121,23 @@ public class TokenService : ITokenService
 
     private string GetToken(
         IEnumerable<Claim> claims,
-        DateTime expirationDateTime,
+        DateTime? expirationDateTime,
         string? audience
     )
     {
-        var jwtTokenDescriptor = GetTokenDescriptor(claims, expirationDateTime, audience);
+        var jwtTokenDescriptor = GetTokenDescriptor(
+            claims,
+            expirationDateTime ?? DateTime.UtcNow.AddMinutes(30),
+            audience
+        );
 
         var jwtTokenHandler = new JwtSecurityTokenHandler();
 
         var jwtToken = jwtTokenHandler.CreateToken(jwtTokenDescriptor);
 
-        return jwtTokenHandler.WriteToken(jwtToken);
+        var token = jwtTokenHandler.WriteToken(jwtToken);
+
+        return token;
     }
 
     private SecurityTokenDescriptor GetTokenDescriptor(
@@ -146,38 +147,22 @@ public class TokenService : ITokenService
     )
     {
         // Signing
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.JwtKey!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.SigningKey!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
-
-        // Encrypting
-        EncryptingCredentials? encryptionCreds = null;
-        if (!string.IsNullOrWhiteSpace(_config.JwtEncryptionCert?.PathToPrivate))
-        {
-            encryptionCreds = new X509EncryptingCredentials(
-                new X509Certificate2(_config.JwtEncryptionCert.PathToPublic)
-            );
-        }
-        else if (!string.IsNullOrWhiteSpace(_config.JwtEncryptionKey))
-        {
-            var encryptedSecurityKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_config.JwtEncryptionKey!)
-            );
-            encryptionCreds = new EncryptingCredentials(
-                encryptedSecurityKey,
-                SecurityAlgorithms.Aes256KW,
-                SecurityAlgorithms.Aes256CbcHmacSha512
-            );
-        }
 
         return new()
         {
-            Subject = new ClaimsIdentity(claims.Append(new Claim("iat", UtcNow.ToIsoString()))),
-            Issuer = _config.Issuer,
-            Audience = audience,
+            IssuedAt = UtcNow,
             NotBefore = UtcNow,
             Expires = expiration,
+
+            Issuer = _config.ValidIssuer!.First(),
+
+            Audience = audience ?? _httpContext?.Request.Headers.Origin,
+
+            Subject = new ClaimsIdentity(claims),
+
             SigningCredentials = creds,
-            EncryptingCredentials = encryptionCreds,
         };
     }
 }
@@ -192,6 +177,7 @@ public static class TokensExtensions
     {
         if (string.IsNullOrWhiteSpace(value))
             return;
+
         claims.Add(new Claim(claimType, value));
     }
 

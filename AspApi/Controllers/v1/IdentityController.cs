@@ -1,5 +1,4 @@
-﻿#if DEBUG
-namespace Zz.Api.Controllers;
+﻿namespace Zz.Api.Controllers;
 
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
@@ -11,15 +10,14 @@ public class IdentityController : BaseApiVersionedController
 {
     [AllowAnonymous]
     [HttpPost("login")]
-    public Task<ActionResult<Login.HResult>> Req([FromBody] Login.Request request)
+    public Task<ActionResult<Login.HResult>> Login([FromBody] Login.Request request)
     {
         return HandleAppRequest<Login.Request, Login.HResult>(request);
     }
 
     [HttpPost("hi")]
-    public Task<ActionResult<string>> Req([FromQuery] string name)
+    public Task<ActionResult<string>> Hi([FromQuery] string name)
     {
         return Task.FromResult((ActionResult<string>)Ok(name));
     }
 }
-#endif

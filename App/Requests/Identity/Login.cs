@@ -15,8 +15,9 @@ public class Login
         string? UserName,
         string? Email,
         string? DisplayName,
-        string Token,
-        string SessionKey
+        DateTime ExpiresAt,
+        string SessionKey,
+        string? Token
     );
 
     public record TwoFAResult(Id22 Id, string TwoFA_AccessToken);
@@ -26,6 +27,7 @@ public class Login
         public required string UsernameOrEmail { get; init; }
         public required string Password { get; init; }
         public bool RememberMe { get; init; }
+        public bool SameSite { get; init; }
     }
 
     public class Validator : AbstractValidator<Request>
@@ -151,21 +153,22 @@ public class Login
             }
 
             DateTime exp = req.RememberMe
-                ? DateTime.UtcNow.AddMonths(3)
+                ? DateTime.UtcNow.AddDays(40)
                 : DateTime.UtcNow.AddHours(12);
 
-            var token = await TokenService.CreateTokenAsync(user, session.Id);
+            var token = await TokenService.CreateTokenAsync(
+                user,
+                session.Id,
+                exp,
+                origin: HttpContext.Request.Headers.Origin
+            );
 
-            // this.HttpContext.Response.Cookies.Append(
-            //     "Authentication",
-            //     string.Concat("Bearer ", token),
-            //     new()
-            //     {
-            //         HttpOnly = true,
-            //         Secure = true,
-            //         MaxAge = exp - UtcNow,
-            //     }
-            // );
+            if (req.SameSite)
+                HttpContext.Response.Cookies.Append(
+                    "access_token",
+                    token,
+                    new() { HttpOnly = true, Expires = exp }
+                );
 
             return await SUCCESS_OK(
                 new HResult(
@@ -173,8 +176,9 @@ public class Login
                     user.UserName,
                     user.Email,
                     user.Profile.DisplayName,
-                    token,
-                    session.GetEncryptedSessionId()
+                    exp,
+                    session.GetEncryptedSessionId(),
+                    req.SameSite ? null : token
                 )
             );
         }

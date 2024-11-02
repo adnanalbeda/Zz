@@ -42,6 +42,10 @@ public static partial class ZzDependencyInjectionExtensions
 
                 options.Tokens.AuthenticatorIssuer = "Zz";
             })
+            .AddRoles<Role>()
+            .AddSignInManager<SignInManager<User>>()
+            .AddUserManager<UserManager<User>>()
+            .AddRoleManager<RoleManager<Role>>()
             .AddEntityFrameworkStores<DataContext>();
 
         return builder;

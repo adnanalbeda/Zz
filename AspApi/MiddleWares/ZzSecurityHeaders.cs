@@ -5,7 +5,9 @@ namespace Zz;
 
 public static partial class MiddleWaresInjection
 {
-    public static void UseZzSecurityHeaders(this Microsoft.AspNetCore.Builder.WebApplication app)
+    public static void UseZzProxySecurityHeaders(
+        this Microsoft.AspNetCore.Builder.WebApplication app
+    )
     {
         //============ Check and Apply Security Headers
 
@@ -25,7 +27,7 @@ public static partial class MiddleWaresInjection
         app.UseXXssProtection(opt => opt.EnabledWithBlockMode());
         app.UseXfo(opt => opt.Deny());
 
-        app.UseCors("DefaultCorsPolicy");
+        // app.UseCors("DefaultCorsPolicy");
 
         // app.UseHttpsRedirection(); // Don't use with nginx, according to MS.
 

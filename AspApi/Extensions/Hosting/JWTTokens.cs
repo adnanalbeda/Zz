@@ -12,72 +12,75 @@ public static partial class ZzDependencyInjectionExtensions
     {
         Console.WriteLine("Configure JWT Services...");
 
-        var identityConfigs = new ZzAppConfigs(builder.Configuration).IdentityConfigs!;
+        var identityConfigs = new ZzAppConfigsResolver(builder.Configuration).JwtIdentityConfigs!;
 
-        string[] wsEventsPaths = ["/signalr", "/notification"];
+        var jwtSigningKey = identityConfigs.SigningKey!;
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey));
 
         builder
             .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(opt =>
-            {
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(identityConfigs.JwtKey!));
-
-                opt.TokenValidationParameters = new TokenValidationParameters
+            .AddJwtBearer(
+                (opt) =>
                 {
-                    IssuerSigningKey = key,
-                    ValidateIssuerSigningKey = true,
-                    ValidateLifetime = true,
-                    ValidIssuers = [identityConfigs.Issuer ?? "Zz"],
-                    ValidateIssuer = false,
-                    ClockSkew = TimeSpan.Zero,
-                };
+                    string[] wsEventsPaths = ["/signalr", "/notification"];
 
-                // Support encryption?
-                // if (!string.IsNullOrWhiteSpace(identityConfigs.JwtEncryptionCert?.PathToPrivate))
-                // {
-                //     opt.TokenValidationParameters.TokenDecryptionKey = new X509SecurityKey(
-                //         new X509Certificate2(identityConfigs.JwtEncryptionCert.PathToPrivate)
-                //     );
-                // }
-                // else if (!string.IsNullOrWhiteSpace(identityConfigs.JwtEncryptionKey))
-                // {
-                //     var encryptionKey = new SymmetricSecurityKey(
-                //         Encoding.UTF8.GetBytes(identityConfigs.JwtEncryptionKey!)
-                //     );
-                //     opt.TokenValidationParameters.TokenDecryptionKey = encryptionKey;
-                // }
-
-                opt.Events = new JwtBearerEvents
-                {
-                    // Add support for WebSocket protocol or SignalR
-                    OnMessageReceived = context =>
+                    opt.TokenValidationParameters = new TokenValidationParameters
                     {
-                        var accessToken = context.Request.Query["access_token"];
-                        // var sessionKey = context.Request.Query["session_key"];
-                        var path = context.HttpContext.Request.Path;
-                        if (
-                            !string.IsNullOrEmpty(accessToken)
-                            && wsEventsPaths.Any(x =>
-                                path.StartsWithSegments(
-                                    x,
-                                    StringComparison.InvariantCultureIgnoreCase
+                        ClockSkew = TimeSpan.Zero,
+                        ValidateLifetime = true,
+
+                        IssuerSigningKey = key,
+                        ValidateIssuerSigningKey = true,
+
+                        ValidIssuers = identityConfigs.ValidIssuer,
+                        ValidateIssuer = true,
+
+                        ValidAudiences = identityConfigs.ValidAudiences,
+                        ValidateAudience = true,
+                    };
+
+                    opt.Events = new JwtBearerEvents
+                    {
+                        // Add support for WebSocket protocol or SignalR
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken =
+                                context
+                                    .HttpContext.Request.Cookies.FirstOrDefault(x =>
+                                        x.Key == "access_token"
+                                    )
+                                    .Value ?? context.Request.Query["access_token"];
+
+                            var path = context.HttpContext.Request.Path;
+                            if (
+                                wsEventsPaths.Any(x =>
+                                    path.StartsWithSegments(
+                                        x,
+                                        StringComparison.InvariantCultureIgnoreCase
+                                    )
                                 )
                             )
-                        )
-                        {
-                            context.Token = accessToken;
-                            // context.Request.Headers["SessionKey"] = sessionKey;
-                            return Task.CompletedTask;
-                        }
+                            {
+                                context.Token = accessToken;
 
-                        // if (string.IsNullOrWhiteSpace(context.Token))
-                        // {
-                        //     context.Token = context.HttpContext.Request.Cookies["Authentication"];
-                        // }
-                        return Task.CompletedTask;
-                    },
-                };
-            });
+                                var sessionKey = context.Request.Query["session_key"];
+                                context.HttpContext.Request.Headers.Append(
+                                    "SessionKey",
+                                    sessionKey
+                                );
+
+                                return Task.CompletedTask;
+                            }
+
+                            context.Token = accessToken;
+
+                            return Task.CompletedTask;
+                        },
+                    };
+                }
+            );
+        builder.Services.AddAuthorization();
+
         return builder;
     }
 }

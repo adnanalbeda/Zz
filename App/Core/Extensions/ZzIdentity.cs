@@ -11,12 +11,7 @@ public static partial class AppDependencyInjectionExtensions
     public static IServiceCollection RegisterZzIdentityService<TI>(this IServiceCollection sc)
         where TI : class, IUserAccessor
     {
-        sc.AddScoped<IUserAccessor, TI>()
-            .AddIdentity<User, Role>()
-            .AddSignInManager<SignInManager<User>>()
-            .AddUserManager<UserManager<User>>()
-            .AddRoleManager<RoleManager<Role>>()
-            .AddEntityFrameworkStores<DataContext>();
+        sc.AddScoped<IUserAccessor, TI>();
         return sc;
     }
 }

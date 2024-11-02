@@ -19,9 +19,9 @@ public static partial class ZzDependencyInjectionExtensions
         // The view in this case is api json result.
         Console.WriteLine("Add Services Configurations...");
 
-        sc.AddSingleton<ZzAppConfigs>()
-            .AddSingleton(x => x.GetRequiredService<ZzAppConfigs>().IdentityConfigs!)
-            .AddSingleton(x => x.GetRequiredService<ZzAppConfigs>().SmtpEmailConfigs!);
+        sc.AddSingleton<ZzAppConfigsResolver>()
+            .AddSingleton(x => x.GetRequiredService<ZzAppConfigsResolver>().JwtIdentityConfigs!)
+            .AddSingleton(x => x.GetRequiredService<ZzAppConfigsResolver>().SmtpEmailConfigs!);
 
         return sc;
     }

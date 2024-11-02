@@ -21,7 +21,7 @@ public class UserAccessor(IHttpContextAccessor httpContextAccessor) : IUserAcces
 
     public string? DisplayName => _HttpContext?.User.FindFirstValue(ClaimTypes.GivenName);
 
-    public string? SessionId => _HttpContext?.User.FindFirstValue(ClaimTypes.Sid);
+    public string? SessionId => _HttpContext?.User.FindFirstValue("sid");
 
     public IEnumerable<string>? Roles =>
         _HttpContext?.User.FindFirstValue(ClaimTypes.Role)?.Split(' ');

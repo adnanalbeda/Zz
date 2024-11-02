@@ -30,11 +30,7 @@ builder.WebHost.ConfigureKestrel(opt =>
     opt.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(90);
 });
 
-builder
-    // .ConfigureZzCors()
-    .ConfigureZzJwtTokens()
-    .ConfigureZzMvcSignalR()
-    .ConfigureZzVersioning();
+builder.ConfigureZzCors().ConfigureZzJwtTokens().ConfigureZzMvcSignalR().ConfigureZzVersioning();
 
 #if DEBUG
 builder.ConfigureZzSwagger().ConfigureZzDebugLogging();
@@ -88,7 +84,7 @@ try
 
     // None of them matters if hosting behind NGINX.
     // Let NGINX handle them instead.
-    app.UseZzSecurityHeaders();
+    app.UseZzProxySecurityHeaders();
 
     logger.LogDebug("3- Static Files...");
 
@@ -117,14 +113,17 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
-    // app.UseZzSessionValidatorMiddleware();
+    app.UseZzSessionValidatorMiddleware();
 
 #if DEBUG
-    logger.LogDebug("_- Monkey Middleware (for testing purposes)...");
-    app.UseZzMonkeyMiddleware();
+    if (app.Environment.IsDevelopment())
+    {
+        logger.LogDebug("_- Monkey Middleware (for testing purposes)...");
+        app.UseZzMonkeyMiddleware();
 
-    logger.LogDebug("_- HttpLogging Middleware (for testing purposes)...");
-    app.UseHttpLogging();
+        logger.LogDebug("_- HttpLogging Middleware (for testing purposes)...");
+        app.UseHttpLogging();
+    }
 #endif
 
     logger.LogDebug("7- Map Route to Controller/Hub...");
@@ -132,7 +131,7 @@ try
     app.MapControllers();
 
     logger.LogDebug("8- Fallback to index.html...");
-    // app.MapFallbackToFile("/index.html");
+    app.MapFallbackToFile("/index.html");
 
     logger.LogDebug("=> Running Api...");
     try

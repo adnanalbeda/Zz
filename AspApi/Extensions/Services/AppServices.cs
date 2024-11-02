@@ -27,7 +27,7 @@ public static partial class ZzDependencyInjectionExtensions
             .RegisterZzChallengeService<Challenge>()
             .AddScoped<IProcessInfo>(_ => new ProcessInfo())
             .AddScoped<IRequestInfo, RequestInfo>()
-            .AddScoped<ITokenService, TokenService>();
+            .AddScoped<ITokenService, JwtTokenService>();
 
         return sc;
     }

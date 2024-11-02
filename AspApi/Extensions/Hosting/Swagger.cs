@@ -35,7 +35,7 @@ public static partial class ZzDependencyInjectionExtensions
                 // Authentication
                 opt.AddSecurityDefinition(
                     bearer,
-                    new OpenApiSecurityScheme
+                    new()
                     {
                         Description =
                             "JWT Authorization header using the Bearer scheme. \r\n\r\n"
@@ -48,7 +48,7 @@ public static partial class ZzDependencyInjectionExtensions
                     }
                 );
                 opt.AddSecurityRequirement(
-                    new OpenApiSecurityRequirement()
+                    new()
                     {
                         {
                             new OpenApiSecurityScheme
@@ -66,40 +66,40 @@ public static partial class ZzDependencyInjectionExtensions
                         },
                     }
                 );
-
-                // // Session Key
-                // var sessionKey = "SessionKey";
-                // // Authentication
-                // opt.AddSecurityDefinition(
-                //     sessionKey,
-                //     new OpenApiSecurityScheme
-                //     {
-                //         Description = "Session secret key.",
-                //         Name = "SessionKey",
-                //         In = ParameterLocation.Header,
-                //         Type = SecuritySchemeType.Http,
-                //         Scheme = bearer,
-                //     }
-                // );
-                // opt.AddSecurityRequirement(
-                //     new OpenApiSecurityRequirement()
-                //     {
-                //         {
-                //             new OpenApiSecurityScheme
-                //             {
-                //                 Reference = new OpenApiReference
-                //                 {
-                //                     Type = ReferenceType.SecurityScheme,
-                //                     Id = sessionKey,
-                //                 },
-                //                 Scheme = "oauth2",
-                //                 Name = sessionKey,
-                //                 In = ParameterLocation.Header,
-                //             },
-                //             new List<string>()
-                //         },
-                //     }
-                // );
+                // Session Key
+                var sessionKey = "SessionKey";
+                // Authentication
+                opt.AddSecurityDefinition(
+                    sessionKey,
+                    new()
+                    {
+                        Description = "Session Key.",
+                        Name = "SessionKey",
+                        In = ParameterLocation.Header,
+                        Type = SecuritySchemeType.ApiKey,
+                        Scheme = sessionKey,
+                    }
+                );
+                opt.AddSecurityRequirement(
+                    new()
+                    {
+                        {
+                            new()
+                            {
+                                Scheme = sessionKey,
+                                BearerFormat = "",
+                                In = ParameterLocation.Header,
+                                Name = sessionKey,
+                                Reference = new()
+                                {
+                                    Id = sessionKey,
+                                    Type = ReferenceType.SecurityScheme,
+                                },
+                            },
+                            new List<string>()
+                        },
+                    }
+                );
 
                 opt.MapType<Id22>(
                     () =>
