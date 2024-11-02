@@ -2,6 +2,7 @@
 using System.Net.Mime;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Writers;
+using Zz.Api;
 using Zz.App.Core;
 using Zz.DataBase.Identity;
 
@@ -26,14 +27,14 @@ public class SessionValidatorMiddleware
             return;
         }
 
-        var athEP = endpoint.Metadata.Any(x => x is AuthorizeAttribute);
+        var sensitiveEP = endpoint.Metadata.Any(x => x is SensitiveAttribute);
 
         // Check if the endpoint allows anonymous access
-        var isAnonymousAllowed =
-            endpoint.Metadata.Any(metadata => metadata is IAllowAnonymous) || !athEP;
+        var shouldValidateSession =
+            endpoint.Metadata.Any(metadata => metadata is IAllowAnonymous) || !sensitiveEP;
 
         // If anonymous access is allowed, proceed to the next middleware
-        if (isAnonymousAllowed)
+        if (shouldValidateSession)
         {
             await _next(context);
             return;

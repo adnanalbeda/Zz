@@ -20,4 +20,11 @@ public class IdentityController : BaseApiVersionedController
     {
         return Task.FromResult((ActionResult<string>)Ok(name));
     }
+
+    [Sensitive]
+    [HttpPost("secret")]
+    public Task<ActionResult<string>> Secret([FromQuery] string name)
+    {
+        return Task.FromResult((ActionResult<string>)Ok(name));
+    }
 }

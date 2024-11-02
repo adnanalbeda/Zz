@@ -19,8 +19,7 @@ public static partial class ZzDependencyInjectionExtensions
             {
                 x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                 x.JsonSerializerOptions.MaxDepth = 7;
-                x.JsonSerializerOptions.DefaultIgnoreCondition =
-                    JsonIgnoreCondition.WhenWritingNull;
+                x.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
                 x.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
                 x.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
